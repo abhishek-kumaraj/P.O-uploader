@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF Viewer App</title>
+</head>
+<body>
+    <h1>PDF Viewer App</h1>
+    <form enctype="multipart/form-data" action="/upload" method="POST">
+        <input type="file" name="pdfFile" accept=".pdf" />
+        <input type="submit" value="Upload PDF" />
+
+    </form>
+    <hr />
+    <embed id="pdfViewer" width="70%" height="500px" src="" ></embed>
+    <p id="data"></p>
+     <!-- Add a container div for the table -->
+     <div id="tableContainer"></div>
+     <div id="tableContainer">
+        <table id="dataTable">
+            <!-- Table headers will be added dynamically -->
+            <thead>
+                <tr></tr>
+            </thead>
+            <tbody>
+                <!-- Table rows will be added dynamically -->
+            </tbody>
+        </table>
+    </div>
+    <script>
+        document.querySelector('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            // Read the selected file as a Blob
+            const file = formData.get('pdfFile');
+            const fileReader = new FileReader();
+            fileReader.readAsDataURL(file);
+    
+            fileReader.onload = async function () {
+                const pdfBase64 = fileReader.result.split(',')[1]; // Extract the base64 content
+                formData.set('pdfFile', pdfBase64); // Set the FormData to contain the base64 data
+                console.log("pdf- \n",pdfBase64);
+                // console.log("form- ",formData)
+    
+                const response = await fetch('http://127.0.0.1:3001/extract_table', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        base64Str: pdfBase64,
+                        borderless: true
+                    }),
+                    headers: {'Content-type':'application/json', 'Accept':'application/json'}
+                });
+    
+                if (response.ok) {
+                    const data = await response.json();
+
+                    console.log('DATA- ',data)
+                    // console.log(data)
+                    // let result = data.result["result-1"];
+                    let {result} = data
+                    const {
+            result_0,
+            issue_date,
+            issuer,
+            issuer_address,
+            po_number,
+            ship_to,
+            supplier,
+            total_amount,
+            total_quantity,
+            vendor,
+        } = result;
+                    // result = await result.json()
+                    console.log(result)
+                    document.getElementById('data').innerText = result;
+// Display the data in the input element
+const dataText = `Issue Date: ${issue_date}\nIssuer: ${issuer}\nIssuer Address: ${issuer_address}\nPO Number: ${po_number}\nShip To: ${ship_to}\nSupplier: ${supplier}\nTotal Amount: ${total_amount}\nTotal Quantity: ${total_quantity}\nVendor: ${vendor}`;
+        document.getElementById('data').innerText = dataText;
+
+        // Create a table from the CSV data (result_0)
+        const tableContainer = document.getElementById('tableContainer');
+        const dataTable = document.getElementById('dataTable');
+        const csvData = result_0.split('\n');
+        const headers = csvData[0].split(',').slice(1); // Skip the first element (0)
+
+        // Create table headers
+        const headerRow = document.querySelector('#dataTable thead tr');
+        headers.forEach((header) => {
+            const th = document.createElement('th');
+            th.textContent = header;
+            headerRow.appendChild(th);
+        });
+
+        // Create table rows
+        for (let i = 1; i < csvData.length; i++) {
+            const row = document.createElement('tr');
+            const rowData = csvData[i].split(',').slice(1); // Skip the first element (0)
+            rowData.forEach((cellData) => {
+                const cell = document.createElement('td');
+                cell.textContent = cellData;
+                row.appendChild(cell);
+            });
+            dataTable.querySelector('tbody').appendChild(row);
+        }
+
+        // Show the table
+        tableContainer.style.display = 'block'
+                    
+                }
+            };
+        });
+    </script>
+    
+</body>
+</html>
